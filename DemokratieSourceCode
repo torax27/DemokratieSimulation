@@ -1,0 +1,475 @@
+import sys
+sys.path.append(r"c:\users\erich\appdata\roaming\python\python37\site-packages")
+sys.path.append(r"c:\users\kosti\appdata\roaming\python\python37\site-packages")
+import simpy
+import pygame
+import random
+import time
+
+pygame.init()
+env = simpy.Environment()
+
+win_height = 720
+win_width = 1280
+
+fontsize = 50
+subsize = 10
+statsize = 25
+revolutionsize = 70
+font = pygame.font.SysFont("Comic Sans MS", fontsize, True)
+subfont = pygame.font.SysFont("Comic Sans MS", subsize, True)
+statfont = pygame.font.SysFont("Comic Sans MS", statsize, True)
+revfont = pygame.font.SysFont("Comic Sans MS", revolutionsize, True)
+
+
+class button():
+    def __init__(self, x, y, width, height):
+        self.x = x
+        self.y = y
+        self.width = width
+        self.height = height
+
+    def draw(self, win, render):
+        win.blit(render, (self.x, self.y))
+
+    def check(self, mx, my):
+        if mx >= self.x and mx <= self.x + self.width:
+            if my >= self.y and my <= self.y + self.height:
+                return True
+
+
+def render(message, color, customfont):
+    return customfont.render(message, 1, color)
+
+
+
+
+class Civilian():
+    subject = "undefined"  # HOW THE SUBJECT WILL BE TREATED DEPENDS ON WHOSE OPINION WINS
+    liveStand = 0
+
+    def __init__(self, env, right, interest, opinion, pic):
+        self.env = env
+        self.right = right
+        self.interest = interest
+        self.opinion = opinion
+        #self.action = env.process(self.run())
+        self.pic = pic
+        self.improving = None
+        self.slow = None
+        self.isdemo = False
+        self.iscapdic = False
+
+        self.width = 128
+        self.height = 128
+        self.x = random.randint(win_width//2 + subjectbox_width//2, win_width - self.width-50)
+        self.y = random.randint(200, win_height - self.height-20)
+        self.color = (0,255,0)
+
+
+    def draw(self, win):
+        self.pic = pygame.transform.scale(self.pic, (128,128))
+        win.blit(self.pic, (self.x, self.y))
+
+    def run(self):  # MAIN METHOD/PROCESS FROM WHICH EVERY CIVILIAN PROCESS WILL BE RUN
+        print("Simulation is starting")
+        if self.interest == 0:
+            print("The people are not interested in what is going on")
+            yield self.env.process(self.noInter())
+
+
+        elif self.interest == 1:
+            print("The people are interested in what is going on")
+            yield self.env.process(self.inter())
+
+    def noInter(self):
+        # (interest could increase if the opinion are very different or if someone tries to convince the civilians)
+        global subject_color, subject
+        if gover.power == 0:
+            print("And the government's power level is normal")
+            self.improving = False
+            self.slow = True
+            if gover.comp and gover.corrupt:
+                print("And there are companies and the government is corrupt")
+                Civilian.subject = gover.compop
+                print("The companies now decide how the subject is treated")
+            else:
+                if gover.comp:
+                    print("And there are companies but the government is not corrupt")
+                elif gover.corrupt:
+                    print("And there are no companies and the government is not/cannot be corrupt")
+                Civilian.subject = gover.opinion
+                print("The government now decides how the subject will be treated")
+
+            print("The subject is now", Civilian.subject)
+            yield self.env.timeout(1)  # ENDING
+
+        elif gover.power == 1:
+            self.improving = False
+            self.slow = False
+            print("And the government is very powerful")
+            yield self.env.process(self.dictatorship())
+
+    def inter(self):
+        global subject_color,subject
+        if gover.power == 0:
+            Civilian.subject = self.opinion
+            subject_color = self.color
+            print("And the government's power level is normal")
+            print("Due to the high level of polical interest, neither the government nor any companies can influence the subject the way they want")
+            self.improving = True
+            self.slow = True
+
+            print("The subject is now", Civilian.subject)
+            yield self.env.timeout(1)  # ENDING
+
+        elif gover.power == 1:
+            print("And the government is very powerful")
+            self.improving = True # HAPPENS IN BOTH CASES
+            self.slow = True
+            if gover.comp and gover.corrupt:
+                print("And there are companies and the government is corrupt")
+                yield self.env.process(self.demo(True))
+
+            else:
+                if gover.comp:
+                    print("And there are companies but the government is not corrupt")
+                elif gover.corrupt:
+                    print("And there are no companies and the government is not/cannot be corrupt")
+                yield self.env.process(self.demo(False))
+
+    def demo(self, comp):
+        self.isdemo = True
+        if comp:
+            print("The subject is now", Civilian.subject)
+            print("THE REVOLUTION AGAINST CAPITALISM HAS BEGUN!!!!")
+        else:
+            print("The subject is now", Civilian.subject)
+            print("THE REVOLUTION AGAINST THE GOVERNMENT HAS BEGUN!!!!")
+        yield self.env.timeout(1)  # ENDING
+
+    def dictatorship(self):
+        if gover.comp and gover.corrupt:
+            # CAPITALISTIC DICTATORSHIP
+            self.iscapdic = True
+            print("And there are companies and the government is corrupt")
+            Civilian.subject = gover.compop
+            print("A capitalistic dictatorship has begun. Due to the lack of political interest it is too late and all hope is lost.")
+        else:
+            # DICTATORSHIP
+            if gover.comp:
+                print("And there are companies but the government is not corrupt")
+            elif gover.corrupt:
+                print("And there are no companies and the government is not/cannot be corrupt")
+            Civilian.subject = gover.opinion
+            print("A dictatorship has begun. Due to the lack of political interest it is too late and all hope is lost")
+
+        print("The subject is now", Civilian.subject)
+        yield self.env.timeout(1)  # ENDING
+
+
+    def changestand(self):
+        global liveStand
+        if self.improving:
+            if self.slow:
+                if itercount % 5 == 0:
+                    Civilian.liveStand += 1
+            else:
+                if itercount % 3 == 0:
+                    Civilian.liveStand += 1
+        else:
+            if self.slow:
+                if itercount % 5 == 0:
+                    Civilian.liveStand -= 1
+            else:
+                if itercount % 3 == 0:
+                    Civilian.liveStand -= 1
+
+
+trump = pygame.image.load(r'Trump.png')
+obama = pygame.image.load(r'Obama.png')
+parliament = pygame.image.load(r"Parlament.png")
+burnparl = pygame.image.load(r"Burning Parliament.png")
+trump = pygame.transform.scale(trump, (128, 128))
+obama = pygame.transform.scale(obama, (128, 128))
+parliament = pygame.transform.scale(parliament, (128, 128))
+burnparl = pygame.transform.scale(burnparl, (128, 128))
+
+
+class Government():
+    def __init__(self, env, opinion, power, corrupt, comp, compop):
+        self.env = env
+        self.action = env.process(self.run())
+        self.opinion = opinion
+        self.power = power
+        self.corrupt = corrupt
+        self.comp = comp
+        self.compop = compop
+
+        self.width = 30
+        self.height = 30
+        self.x = random.randint(0,win_width // 2- self.width - subjectbox_width//2)
+        self.y = random.randint(250, win_height - self.height-300)
+        self.color = (255, 0, 0)
+
+    def run(self):
+        """IF THE GOVERNMENT IS POWERFUL IT MEANS IT DOES NOT LISTEN TO THE POPULATION
+         AND TRIES TO ENFORCE ITS OWN OPINION"""
+        yield self.env.timeout(1)
+
+
+def getinput():
+    global goverop, goverpow, civilright, civilinter, civilop, corrupt, comp, compop, specialthanks
+
+    try:
+        comp = input("Please enter whether companies should be enabled ( [yes] or [no] ):")
+        if comp == "yes":
+            comp = True
+        else:
+            comp = False
+        if comp:
+            compop = input("Please enter the companies' opinion:")
+        else:
+            compop = "None"
+        print("All the variables for the companies have been set")
+
+        goverop = input("Please enter the government's opinion:")
+        goverpow = input("Please enter the government's power level ( [high] or [normal] ):")
+        if goverpow == "high":
+            goverpow = 1
+        else:
+            goverpow = 0
+        if comp:
+            corrupt = input("Please enter whether the government should be corrupt ( [yes] or [no] ):")
+        else:
+            corrupt = False
+        if corrupt == "yes":
+            corrupt = True
+        else:
+            corrupt = False
+        print("All the variables for the government have been set")
+
+
+        civilinter = input("Please enter the civilian's level of interest in politics ( [high] or [low] ):")
+        if civilinter == "high":
+            civilinter = 1
+        else:
+            civilinter = 0
+        civilop = input("Please enter the civilian's opinion:")
+        print("All the variables for the civilians have been set")
+
+        #specialthanks = input("Do you want to see special thanks? ( [yes] or [no] )")
+        #if specialthanks == "yes":
+         #   specialthanks = True
+        #else:
+         #   specialthanks = False
+
+    except Exception:
+        print("Something went wrong. You probably entered an invalid value. Please try again.")
+        getinput()
+
+
+def spawn():
+    width = 30
+    height = 30
+    x = random.randint(0, win_width-width)
+    y = random.randint(0, win_height-height)
+    color = (0,255,0)
+
+    return (color,x,y,width,height)
+
+def overlapping(x,y,width, height, x_2,y_2, width_2, height_2):
+    if x_2 <= x + width and x_2 + width_2 >= x:
+        if y_2 <= y + height and y_2 + height_2 >= y:
+            return True
+    return False
+
+
+civilrender = render("Civilians", (0, 0, 255), font)
+civiltext = button(win_width // 2 + win_width // 4 - civilrender.get_width() // 2, 150, civilrender.get_width(), fontsize)
+goverrender = render("Government", (255,0,0), font)
+govertext = button(win_width // 2 - win_width // 4 - goverrender.get_width() // 2, 150, goverrender.get_width(), fontsize)
+
+subjectbox_width = 250
+subjectbox_height = 250
+subjectbox_x = win_width // 2 - subjectbox_width // 2
+subjectbox_y = win_height // 2 - subjectbox_height // 2
+Civilian.subject_color = (255,255,255) # CHANGES ACCORING TO WHOSE OPINION IT IST
+subjectrender = render("Subject:", (255,255,255), font)
+subjecttext = button(win_width//2 - subjectrender.get_width()//2, subjectbox_y+20, subjectrender.get_width(), 15)
+
+
+getinput()
+
+# FOR TESTS TO SKIP INPUT
+#goverop = "goverop"
+#goverpow = 1
+#corrupt = False
+#comp = True
+#compop = "compop"
+
+civilright = 2
+#civilinter = 1
+#civilop = "civilop"
+
+
+politicians = []
+gover = Government(env, goverop, goverpow, corrupt, comp, compop) # ASK FOR INPUT FOR THE LAST TWO!!!
+
+
+parliament_x  = 250
+parliament_y = 250
+obama_x = 240
+obama_y = 300
+trump_x = 290
+trump_y = 300
+
+
+
+civilization = []
+clerk = pygame.image.load(r"Clerk.png")
+civilization.append(Civilian(env, civilright, civilinter, civilop, clerk))
+farmer = pygame.image.load(r"Farmer.png")
+civilization.append(Civilian(env, civilright, civilinter, civilop, farmer))
+gangsta = pygame.image.load(r"Gangsta.png")
+civilization.append(Civilian(env, civilright, civilinter, civilop, gangsta))
+grandma = pygame.image.load(r"Grandmother.png")
+civilization.append(Civilian(env, civilright, civilinter, civilop, grandma))
+kuristina = pygame.image.load(r"Makise Kurisu.png")
+civilization.append(Civilian(env, civilright, civilinter, civilop, kuristina))
+okabe = pygame.image.load(r"Okabe.png")
+civilization.append(Civilian(env, civilright, civilinter, civilop, okabe))
+
+runcivil = Civilian(env, civilright, civilinter, civilop, okabe)
+
+flames = [pygame.image.load(r"Flame1.png"), pygame.image.load(r"Flame2.png"), pygame.image.load(r"Flame3.png")]
+flamewidth = 256
+flameheight = 256
+
+for flame in flames:
+    flame = pygame.transform.scale(flame, (flamewidth,flameheight))
+
+
+money = pygame.image.load(r"Money.png")
+money = pygame.transform.scale(money, (128,128))
+
+flamexys = []
+v = 5
+for i in range(0,v):
+    x = random.randint(win_width//2 + subjectbox_width//2, win_width - runcivil.width-50)
+    y = random.randint(250, win_height - runcivil.height-300)
+    for c in civilization:
+        if overlapping(x,y, flamewidth, flameheight, c.x, c.y, c.width, c.height):
+            v += 1
+            lap = True
+            break
+
+        lap = False
+    if lap:
+        continue
+
+    flamexys.append((x,y))
+
+revolutions = []
+moneys = []
+#thanks = []
+
+flamecount = 0
+def drawEver(win):
+    global actualsubtext, actualsubrender, flamecount
+
+    randomsize = random.randint(10, 70)
+    randomfont = pygame.font.SysFont("Comic Sans MS", randomsize, True)
+
+    money_x = random.randint(0,win_width // 2- gover.width - subjectbox_width//2)
+    money_y = random.randint(250, win_height - gover.height-300)
+
+    win.fill((0, 0, 0))
+
+    for civilist in civilization:
+        civilist.draw(win)
+
+    if itercount == 1:
+        actualsubrender = render(str(Civilian.subject), Civilian.subject_color, font)
+        actualsubtext = button(win_width // 2 - actualsubrender.get_width() // 2, subjectbox_y + 100, actualsubrender.get_width(), 10)
+
+    standrender = render("Standard of living:" + str(Civilian.liveStand), (0, 255, 0), statfont)
+    stand = button(win_width - standrender.get_width() - 50, 20, standrender.get_width(), fontsize)
+
+    flamecount += 1
+    if flamecount > 10:
+        flamecount = 0
+
+
+        # win.blit(flames[flamecount//5], (1000, 600))
+        # win.blit(flames[flamecount // 5], (900, 500))
+        # win.blit(flames[flamecount // 5], (800, 400))
+
+
+    pygame.draw.rect(win, (255,255,255), (subjectbox_x, subjectbox_y, subjectbox_width, subjectbox_height), 2)
+
+    civiltext.draw(win, civilrender)
+    govertext.draw(win, goverrender)
+    subjecttext.draw(win, subjectrender)
+    actualsubtext.draw(win, actualsubrender)
+
+    stand.draw(win, standrender)
+
+    if runcivil.isdemo and itercount > 50:
+        win.blit(burnparl,(parliament_x, parliament_y))
+    else:
+        win.blit(parliament, (parliament_x, parliament_y))
+    win.blit(obama, (obama_x, obama_y))
+    win.blit(trump, (trump_x, trump_y))
+
+    if runcivil.isdemo and itercount > 200:
+        mainrevrender = render("The Revolution has begun!", (255, 0, 0), revfont)
+        mainrev = button(win_width // 2 - mainrevrender.get_width() // 2, 50, mainrevrender.get_width(), revolutionsize)
+        mainrev.draw(win, mainrevrender)
+
+        if itercount > 700:
+            revrender = render("The Revolution has begun!", (255, 0, 0), randomfont)
+            rev = button(random.randint(0, win_width), random.randint(0, win_height), revrender.get_width(), randomsize)
+            revolutions.append([revrender, rev])
+
+            for rev in revolutions:
+                rev[1].draw(win, rev[0])
+
+    if runcivil.iscapdic and itercount > 200:
+        moneys.append((money_x, money_y))
+        for xy in moneys:
+            win.blit(money, xy)
+
+    #if specialthanks and itercount > 1000:
+     #   specialrender = render("Danke fürs Schneiden Max", (0, 0, 255), randomfont)
+      #  specialthx = button(random.randint(0, win_width), random.randint(0, win_height), specialrender.get_width(), randomsize)
+       # thanks.append([specialrender, specialthx])
+
+        #for thank in thanks:
+         #   thank[1].draw(win, thank[0])
+
+    pygame.display.update()
+
+
+
+win = pygame.display.set_mode((win_width, win_height))
+visualizing = True
+itercount = 0
+
+while visualizing:
+    itercount += 1
+
+    #if itercount <= 5: # SPAWNING POLITICIANS FOR DRAWING
+       # politicians.append(Government(env, goverop, goverpow, corrupt, comp, compop))
+
+    if itercount == 1:
+        env.run(env.process(runcivil.run()))
+
+    runcivil.changestand()
+
+    for event in pygame.event.get():
+        if event.type == pygame.QUIT:
+            sys.exit()
+
+
+    drawEver(win)
